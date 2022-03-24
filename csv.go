@@ -45,7 +45,7 @@ func (c *csvToStruct[T]) Execute2() error {
 		for j, _ := range val {
 			f := reflect.ValueOf(&tmp).Elem().Field(j)
 			switch f.Interface().(type) {
-			case int:
+			case int, int32, int64:
 				v, err := strconv.Atoi(data[i][j])
 				if err != nil {
 					fmt.Println("invalid csv type, recording to struct it should be type int")
@@ -61,15 +61,8 @@ func (c *csvToStruct[T]) Execute2() error {
 					return err
 				}
 				f.SetBool(b)
-			case float64:
+			case float32, float64:
 				v, err := strconv.ParseFloat(data[i][j], 64)
-				if err != nil {
-					fmt.Println("invalid bool type, recording to struct it should be type bool")
-					return err
-				}
-				f.SetFloat(v)
-			case float32:
-				v, err := strconv.ParseFloat(data[i][j], 32)
 				if err != nil {
 					fmt.Println("invalid bool type, recording to struct it should be type bool")
 					return err
