@@ -20,8 +20,8 @@ type CsvToStruct[T any] struct {
 func Conv[T any](csvFile string) CsvToStruct[T] {
 	c := CsvToStruct[T]{
 		targetCSV: csvFile,
-		outChan:   make(chan []T, 1),
 		chunkSize: 2,
+		outChan:   make(chan []T, 1),
 		end:       make(chan bool, 1),
 		next:      make(chan bool, 1),
 		run:       true,
@@ -30,12 +30,12 @@ func Conv[T any](csvFile string) CsvToStruct[T] {
 	return c
 }
 
+//TODO create Convert and return all of []T
+
 func (c *CsvToStruct[T]) Next() bool {
 	if c.run {
 		c.next <- true
-		return true
 	}
-
 	return true
 }
 
@@ -57,7 +57,7 @@ func (c *CsvToStruct[T]) Read() ([]T, error) {
 
 func (c *CsvToStruct[T]) start() {
 	go func() {
-		//TODO run with goroutine here and remove return err, if error occurred then send it to chan
+		//TODO if error occurred then send it to chan
 		data := [][]string{
 			{"AAAA0", "BBBB0", "111"},
 			{"CCCC1", "DDDD1", "222"},
@@ -102,7 +102,7 @@ func set(f reflect.Value, val string) error {
 	case int, int32, int64:
 		v, err := strconv.Atoi(val)
 		if err != nil {
-			fmt.Println("invalid csv type, recording to struct it should be type int")
+			fmt.Println("invalid csv type, recording to struct it should be type int") //TODO fixme, generate manual err
 			return err
 		}
 		f.SetInt(int64(v))
@@ -111,19 +111,19 @@ func set(f reflect.Value, val string) error {
 	case bool:
 		b, err := strconv.ParseBool(val)
 		if err != nil {
-			fmt.Println("invalid bool type, recording to struct it should be type bool")
+			fmt.Println("invalid bool type, recording to struct it should be type bool") //TODO fixme
 			return err
 		}
 		f.SetBool(b)
 	case float32, float64:
 		v, err := strconv.ParseFloat(val, 64)
 		if err != nil {
-			fmt.Println("invalid bool type, recording to struct it should be type bool")
+			fmt.Println("invalid bool type, recording to struct it should be type bool") //TODO fixme
 			return err
 		}
 		f.SetFloat(v)
 	default:
-		fmt.Println("not found")
+		fmt.Println("not found") //TODO return err not support
 	}
 	return nil
 }
