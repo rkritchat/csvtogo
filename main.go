@@ -22,7 +22,7 @@ func main() {
 	//	fmt.Printf("Field: %s\tValue: %v\n", typeOfS.Field(i).Name, v.Field(i).Interface())
 	//}
 
-	output := make(chan []CustInfo, 10)
+	output := make(chan []CustInfo)
 	defer close(output)
 
 	c, end, next := NewCsvToStruct[CustInfo](output)

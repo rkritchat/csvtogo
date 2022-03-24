@@ -13,6 +13,7 @@ type CsvToStruct interface {
 type csvToStruct[T any] struct {
 	targetCSV string
 	outChan   chan []T
+	chunkSize int
 	end       chan bool
 	next      chan bool
 }
@@ -21,13 +22,15 @@ func NewCsvToStruct[T any](outChan chan []T) (CsvToStruct, chan bool, chan bool)
 	end := make(chan bool, 1)
 	next := make(chan bool, 1)
 	return &csvToStruct[T]{
-		outChan: outChan,
-		end:     end,
-		next:    next,
+		outChan:   outChan,
+		chunkSize: 2,
+		end:       end,
+		next:      next,
 	}, end, next
 }
 
 func (c *csvToStruct[T]) Execute2() error {
+	//TODO run with goroutine here and remove return err, if error occurred then send it to chan
 	data := [][]string{
 		{"AAAA0", "BBBB0", "111"},
 		{"CCCC1", "DDDD1", "222"},
@@ -37,54 +40,63 @@ func (c *csvToStruct[T]) Execute2() error {
 		{"CCCC5", "DDDD5", "666"},
 		{"CCCC6", "DDDD6", "999"},
 	}
-	batchSize := 1
 	ref := make([]T, 1)
 	var out []T
 	for i, val := range data {
 		tmp := ref[0] //copy reference
-		for j, _ := range val {
+		for j := range val {
 			f := reflect.ValueOf(&tmp).Elem().Field(j)
-			switch f.Interface().(type) {
-			case int, int32, int64:
-				v, err := strconv.Atoi(data[i][j])
-				if err != nil {
-					fmt.Println("invalid csv type, recording to struct it should be type int")
-					return err
-				}
-				f.SetInt(int64(v))
-			case string:
-				f.SetString(data[i][j])
-			case bool:
-				b, err := strconv.ParseBool(data[i][j])
-				if err != nil {
-					fmt.Println("invalid bool type, recording to struct it should be type bool")
-					return err
-				}
-				f.SetBool(b)
-			case float32, float64:
-				v, err := strconv.ParseFloat(data[i][j], 64)
-				if err != nil {
-					fmt.Println("invalid bool type, recording to struct it should be type bool")
-					return err
-				}
-				f.SetFloat(v)
-			default:
-				fmt.Println("not found")
+			err := set(f, data[i][j])
+			if err != nil {
+				return err
 			}
 		}
 		out = append(out, tmp)
-		if len(out) == batchSize {
-			c.outChan <- out
-			<-c.next //w8 until client ready to move
-			out = []T{}
-		}
-	}
-	if len(out) > 0 {
-		c.outChan <- out
-		<-c.next //w8 until client ready to move
+		c.send(&out)
 	}
 
+	//last chunk
+	c.send(&out, len(out) > 0)
 	c.end <- true
+	return nil
+}
+
+func (c *csvToStruct[T]) send(out *[]T, force ...bool) {
+	if c.chunkSize == len(*out) || (len(force) > 0 && force[0]) {
+		c.outChan <- *out
+		<-c.next //w8 until client ready to move
+		*out = []T{}
+	}
+}
+
+func set(f reflect.Value, val string) error {
+	switch f.Interface().(type) {
+	case int, int32, int64:
+		v, err := strconv.Atoi(val)
+		if err != nil {
+			fmt.Println("invalid csv type, recording to struct it should be type int")
+			return err
+		}
+		f.SetInt(int64(v))
+	case string:
+		f.SetString(val)
+	case bool:
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			fmt.Println("invalid bool type, recording to struct it should be type bool")
+			return err
+		}
+		f.SetBool(b)
+	case float32, float64:
+		v, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			fmt.Println("invalid bool type, recording to struct it should be type bool")
+			return err
+		}
+		f.SetFloat(v)
+	default:
+		fmt.Println("not found")
+	}
 	return nil
 }
 
