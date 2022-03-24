@@ -14,6 +14,7 @@ type CustInfo struct {
 
 func main() {
 	rows := Conv[CustInfo]("test.csv") //TODO implement me
+	defer rows.Close()
 	for rows.Next() {
 		tmp, err := rows.Read() //return EOF is no more rows, return []T, err
 		if err == io.EOF {

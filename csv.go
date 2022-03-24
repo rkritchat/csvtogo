@@ -10,8 +10,8 @@ import (
 
 type CsvToStruct[T any] struct {
 	targetCSV string
-	outChan   chan []T
 	chunkSize int
+	outChan   chan []T
 	end       chan bool
 	next      chan bool
 	run       bool
@@ -36,9 +36,6 @@ func (c *CsvToStruct[T]) Next() bool {
 		return true
 	}
 
-	//no more data
-	close(c.next)
-	close(c.outChan)
 	return true
 }
 
@@ -60,7 +57,6 @@ func (c *CsvToStruct[T]) Read() ([]T, error) {
 
 func (c *CsvToStruct[T]) start() {
 	go func() {
-		defer close(c.end)
 		//TODO run with goroutine here and remove return err, if error occurred then send it to chan
 		data := [][]string{
 			{"AAAA0", "BBBB0", "111"},
@@ -130,6 +126,12 @@ func set(f reflect.Value, val string) error {
 		fmt.Println("not found")
 	}
 	return nil
+}
+
+func (c *CsvToStruct[T]) Close() {
+	close(c.next)
+	close(c.outChan)
+	close(c.end)
 }
 
 //func (c *CsvToStruct[T]) Execute() error {
