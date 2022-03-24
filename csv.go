@@ -2,66 +2,96 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"reflect"
 	"strconv"
 )
 
-type CsvToStruct interface {
-	Execute2() error
-}
-
-type csvToStruct[T any] struct {
+type CsvToStruct[T any] struct {
 	targetCSV string
 	outChan   chan []T
 	chunkSize int
 	end       chan bool
 	next      chan bool
+	run       bool
 }
 
-func NewCsvToStruct[T any](outChan chan []T) (CsvToStruct, chan bool, chan bool) {
-	end := make(chan bool, 1)
-	next := make(chan bool, 1)
-	return &csvToStruct[T]{
+func Conv[T any](outChan chan []T) CsvToStruct[T] {
+	c := CsvToStruct[T]{
 		outChan:   outChan,
 		chunkSize: 2,
-		end:       end,
-		next:      next,
-	}, end, next
+		end:       make(chan bool, 1),
+		next:      make(chan bool, 1),
+		run:       true,
+	}
+	c.start()
+	return c
 }
 
-func (c *csvToStruct[T]) Execute2() error {
-	//TODO run with goroutine here and remove return err, if error occurred then send it to chan
-	data := [][]string{
-		{"AAAA0", "BBBB0", "111"},
-		{"CCCC1", "DDDD1", "222"},
-		{"CCCC2", "DDDD2", "333"},
-		{"CCCC3", "DDDD3", "444"},
-		{"CCCC4", "DDDD4", "555"},
-		{"CCCC5", "DDDD5", "666"},
-		{"CCCC6", "DDDD6", "999"},
+func (c *CsvToStruct[T]) Next() bool {
+	if c.run {
+		c.next <- true
+		return true
 	}
-	ref := make([]T, 1)
-	var out []T
-	for i, val := range data {
-		tmp := ref[0] //copy reference
-		for j := range val {
-			f := reflect.ValueOf(&tmp).Elem().Field(j)
-			err := set(f, data[i][j])
-			if err != nil {
-				return err
-			}
+
+	//no more data
+	close(c.next)
+	return true
+}
+
+func (c *CsvToStruct[T]) Read() ([]T, error) {
+	for c.run {
+		select {
+		case data := <-c.outChan:
+			return data, nil
+		case <-c.end:
+			fmt.Println("no more data, stop..")
+			c.run = false
+			return nil, io.EOF
+		default:
+			//waiting
 		}
-		out = append(out, tmp)
-		c.send(&out)
 	}
-
-	//last chunk
-	c.send(&out, len(out) > 0)
-	c.end <- true
-	return nil
+	return nil, nil
 }
 
-func (c *csvToStruct[T]) send(out *[]T, force ...bool) {
+func (c *CsvToStruct[T]) start() {
+	go func() {
+		defer close(c.end)
+		//TODO run with goroutine here and remove return err, if error occurred then send it to chan
+		data := [][]string{
+			{"AAAA0", "BBBB0", "111"},
+			{"CCCC1", "DDDD1", "222"},
+			{"CCCC2", "DDDD2", "333"},
+			{"CCCC3", "DDDD3", "444"},
+			{"CCCC4", "DDDD4", "555"},
+			{"CCCC5", "DDDD5", "666"},
+			{"CCCC6", "DDDD6", "999"},
+		}
+		ref := make([]T, 1)
+		var out []T
+		for i, val := range data {
+			tmp := ref[0] //copy reference
+			for j := range val {
+				f := reflect.ValueOf(&tmp).Elem().Field(j)
+				err := set(f, data[i][j])
+				if err != nil {
+					log.Fatalln(err) //TODO fix me by sending err to chan
+					//return err
+				}
+			}
+			out = append(out, tmp)
+			c.send(&out)
+		}
+
+		//last chunk
+		c.send(&out, len(out) > 0)
+		c.end <- true
+	}()
+}
+
+func (c *CsvToStruct[T]) send(out *[]T, force ...bool) {
 	if c.chunkSize == len(*out) || (len(force) > 0 && force[0]) {
 		c.outChan <- *out
 		<-c.next //w8 until client ready to move
