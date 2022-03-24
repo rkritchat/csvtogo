@@ -17,9 +17,9 @@ type CsvToStruct[T any] struct {
 	run       bool
 }
 
-func Conv[T any](outChan chan []T) CsvToStruct[T] {
+func Conv[T any]() CsvToStruct[T] {
 	c := CsvToStruct[T]{
-		outChan:   outChan,
+		outChan:   make(chan []T, 1),
 		chunkSize: 2,
 		end:       make(chan bool, 1),
 		next:      make(chan bool, 1),
@@ -37,6 +37,7 @@ func (c *CsvToStruct[T]) Next() bool {
 
 	//no more data
 	close(c.next)
+	close(c.outChan)
 	return true
 }
 

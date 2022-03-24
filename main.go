@@ -13,9 +13,7 @@ type CustInfo struct {
 }
 
 func main() {
-	outChan := make(chan []CustInfo, 1)
-	defer close(outChan)
-	rows := Conv[CustInfo](outChan)
+	rows := Conv[CustInfo]()
 	for rows.Next() { //next call <- next
 		tmp, err := rows.Read() //return EOF is no more rows, return []T, err
 		if err == io.EOF {
