@@ -15,11 +15,11 @@ type CustInfo struct {
 func main() {
 	outChan := make(chan []CustInfo, 1)
 	defer close(outChan)
-	c := Conv[CustInfo](outChan)
-	for c.Next() { //next call <- next
-		tmp, err := c.Read() //return EOF is no more rows, return []T, err
+	rows := Conv[CustInfo](outChan)
+	for rows.Next() { //next call <- next
+		tmp, err := rows.Read() //return EOF is no more rows, return []T, err
 		if err == io.EOF {
-			fmt.Println("eofff")
+			fmt.Println("EOF")
 			break
 		}
 		if tmp != nil {
