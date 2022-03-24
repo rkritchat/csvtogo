@@ -17,8 +17,9 @@ type CsvToStruct[T any] struct {
 	run       bool
 }
 
-func Conv[T any]() CsvToStruct[T] {
+func Conv[T any](csvFile string) CsvToStruct[T] {
 	c := CsvToStruct[T]{
+		targetCSV: csvFile,
 		outChan:   make(chan []T, 1),
 		chunkSize: 2,
 		end:       make(chan bool, 1),
@@ -131,14 +132,13 @@ func set(f reflect.Value, val string) error {
 	return nil
 }
 
-//func (c *csvToStruct[T]) Execute() error {
+//func (c *CsvToStruct[T]) Execute() error {
 //	f, err := os.Open(c.targetCSV)
 //	if err != nil {
 //		return err
 //	}
 //	defer f.Close()
 //
-//	v := reflect.ValueOf(c.out)
 //	reader := csv.NewReader(f)
 //	counter := 0
 //	for {
@@ -151,9 +151,6 @@ func set(f reflect.Value, val string) error {
 //			fmt.Println(counter)
 //			return fmt.Errorf("invalid at %v", counter)
 //		}
-//
-//		reflect.ValueOf(&c.out).Elem().Field(0).SetString("1234")
-//
 //	}
 //	return nil
 //}
