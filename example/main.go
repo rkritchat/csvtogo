@@ -14,19 +14,6 @@ type CustInfo struct {
 	Age       int    `json:"age" min:"1" max:"3"`
 }
 
-//func main() {
-//	err := csvtogo.ValidateStruct[CustInfo](CustInfo{
-//		Firstname: "kritchat",
-//		Lastname:  "rojanaphruk",
-//		Age:       10,
-//	})
-//	if err != nil {
-//		fmt.Println(err)
-//		return
-//	}
-//	fmt.Println("OK")
-//}
-
 func main() {
 	c, err := csvtogo.NewClient[CustInfo](
 		"./test.csv",
