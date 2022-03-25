@@ -13,12 +13,22 @@ type CustInfo struct {
 }
 
 func main() {
-	rows := Conv[CustInfo]("test.csv") //TODO implement me
+	client := NewClient[CustInfo](
+		"./test.csv",
+		Options{
+			SkipHeader: true,
+			ChunkSize:  1,
+		})
+	rows := client.Rows()
 	defer rows.Close()
 	for rows.Next() {
-		tmp, err := rows.Read() //return EOF is no more rows, return []T, err
+		tmp, err := rows.Read() //return EOF is no more rows, return T, err
 		if err == io.EOF {
 			fmt.Println("EOF")
+			break
+		}
+		if err != nil {
+			fmt.Println(err)
 			break
 		}
 		if tmp != nil {
