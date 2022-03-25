@@ -202,7 +202,15 @@ func (c *CsvToStruct[T]) valueSetter(ref T, data []string, counter int) error {
 	if !c.isValidStruct(len(data), v.NumField()) {
 		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", counter, v.NumField(), getRealNoOfCol(len(data), len(c.ops.SkipCol)))
 	}
+
+	//set value by using reflex
 	err := c.setValue(data, &ref)
+	if err != nil {
+		return err
+	}
+
+	//validate struct value from tag
+	err = validateStruct(ref, counter)
 	if err != nil {
 		return err
 	}

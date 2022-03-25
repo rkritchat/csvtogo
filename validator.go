@@ -11,17 +11,17 @@ const (
 	tagMax = "max"
 )
 
-func ValidateStruct[T any](f T) error {
+func validateStruct[T any](f T, row int) error {
 	v := reflect.ValueOf(&f).Elem()
 	for i := 0; i < v.NumField(); i++ {
 		//check minimum value length
-		err := checkMin[T](f, i, v)
+		err := checkMin[T](f, i, row, v)
 		if err != nil {
 			return err
 		}
 
 		//check maximum value length
-		err = checkMax[T](f, i, v)
+		err = checkMax[T](f, i, row, v)
 		if err != nil {
 			return err
 		}
@@ -29,7 +29,7 @@ func ValidateStruct[T any](f T) error {
 	return nil
 }
 
-func checkMin[T any](field T, sequence int, v reflect.Value) error {
+func checkMin[T any](field T, sequence, row int, v reflect.Value) error {
 	minimum, err := isTagFound[T](field, sequence, tagMin, v)
 	if err != nil {
 		return err
@@ -41,8 +41,9 @@ func checkMin[T any](field T, sequence int, v reflect.Value) error {
 
 	value := fmt.Sprintf("%v", v.Field(sequence).Interface())
 	if len(value) < minimum {
-		return fmt.Errorf("value of %v is invalid, value length must more than or equal %v, but got: %v",
+		return fmt.Errorf("value of %v at row %v is invalid, value length must more than or equal %v, but got: %v",
 			v.Type().Field(sequence).Name,
+			row,
 			minimum,
 			len(value),
 		)
@@ -50,7 +51,7 @@ func checkMin[T any](field T, sequence int, v reflect.Value) error {
 	return nil
 }
 
-func checkMax[T any](field T, sequence int, v reflect.Value) error {
+func checkMax[T any](field T, sequence, row int, v reflect.Value) error {
 	maximum, err := isTagFound[T](field, sequence, tagMax, v)
 	if err != nil {
 		return err
@@ -62,8 +63,9 @@ func checkMax[T any](field T, sequence int, v reflect.Value) error {
 
 	value := fmt.Sprintf("%v", v.Field(sequence).Interface())
 	if len(value) > maximum {
-		return fmt.Errorf("value of %v is invalid, value length must less than or equal %v, but got: %v",
+		return fmt.Errorf("value of %v at row %v is invalid, value length must less than or equal %v, but got: %v",
 			v.Type().Field(sequence).Name,
+			row,
 			maximum,
 			len(value),
 		)
