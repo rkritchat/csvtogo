@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/rkritchat/csvtogo"
 	"io"
+	"log"
 	"time"
 )
 
@@ -14,13 +15,21 @@ type CustInfo struct {
 }
 
 func main() {
-	c := csvtogo.NewClient[CustInfo](
+	c, err := csvtogo.NewClient[CustInfo](
 		"./test.csv",
 		csvtogo.Options{
 			SkipHeader: true,
 			ChunkSize:  1,
 			Comma:      ',',
+			SkipCol: []int{ //skip convert to struct on column 0 and 3
+				0,
+				3,
+			},
 		})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	rows := c.Rows()
 	defer rows.Close()
 	for rows.Next() {
