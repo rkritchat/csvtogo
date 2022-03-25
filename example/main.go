@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/rkritchat/csvtogo"
 	"io"
 	"time"
 )
@@ -13,13 +14,14 @@ type CustInfo struct {
 }
 
 func main() {
-	client := NewClient[CustInfo](
+	c := csvtogo.NewClient[CustInfo](
 		"./test.csv",
-		Options{
+		csvtogo.Options{
 			SkipHeader: true,
 			ChunkSize:  1,
+			Comma:      ',',
 		})
-	rows := client.Rows()
+	rows := c.Rows()
 	defer rows.Close()
 	for rows.Next() {
 		tmp, err := rows.Read() //return EOF is no more rows, return T, err

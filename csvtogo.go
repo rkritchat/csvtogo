@@ -1,4 +1,4 @@
-package main
+package csvtogo
 
 import (
 	"encoding/csv"
@@ -15,13 +15,19 @@ const (
 
 var _defaultOps = Options{
 	SkipHeader: true,
+	Comma:      ',',
+}
+
+type Client[T any] struct {
+	CsvToStruct[T]
 }
 
 type CsvToStruct[T any] struct {
 	targetCSV string
-	outChan   chan []T
-	end       chan bool
-	next      chan bool
+	outsChan  chan []T
+	outChan   chan T
+	endChan   chan bool
+	nextChan  chan bool
 	errChan   chan error
 	run       bool
 	ops       Options
@@ -32,21 +38,28 @@ type Options struct {
 	SkipHeader  bool
 	SkipCol     []string
 	ReplaceWith map[string]string
+	Comma       rune
 }
 
-func NewClient[T any](csvFile string, ops ...Options) CsvToStruct[T] {
+func NewClient[T any](csvFile string, ops ...Options) Client[T] {
 	options := _defaultOps
 	if ops != nil {
 		options = ops[0]
 	}
-	return CsvToStruct[T]{
-		targetCSV: csvFile,
-		ops:       options,
-		outChan:   make(chan []T, 1),
-		end:       make(chan bool, 1),
-		next:      make(chan bool, 1),
-		errChan:   make(chan error),
-		run:       true,
+
+	//validate option here TODO
+	//validate csvFile here TODO
+	return Client[T]{
+		CsvToStruct[T]{
+			targetCSV: csvFile,
+			ops:       options,
+			outsChan:  make(chan []T, 1),
+			outChan:   make(chan T, 1),
+			endChan:   make(chan bool, 1),
+			nextChan:  make(chan bool, 1),
+			errChan:   make(chan error),
+			run:       true,
+		},
 	}
 }
 
@@ -57,18 +70,18 @@ func (c *CsvToStruct[T]) ToList() *CsvToStruct[T] {
 
 func (c *CsvToStruct[T]) Next() bool {
 	if c.run {
-		c.next <- true
+		c.nextChan <- true
 		return true
 	}
 	return false
 }
 
-func (c *CsvToStruct[T]) Read() ([]T, error) {
+func (c *CsvToStruct[T]) Read() (*T, error) {
 	for c.run {
 		select {
 		case data := <-c.outChan:
-			return data, nil
-		case <-c.end:
+			return &data, nil
+		case <-c.endChan:
 			c.run = false
 			return nil, io.EOF
 		case err := <-c.errChan:
@@ -96,7 +109,7 @@ func (c *CsvToStruct[T]) start() {
 	var isErr bool
 	for _, val := range data {
 		if isErr {
-			break
+			return
 		}
 		tmp := ref[0] //copy reference
 		err := c.setValue(val, &tmp)
@@ -104,15 +117,12 @@ func (c *CsvToStruct[T]) start() {
 			c.errChan <- err
 		}
 		out = append(out, tmp)
-		c.send(&out)
-	}
-	if isErr {
-		return
+		c.sendChunk(&out)
 	}
 
 	//last chunk
-	c.send(&out, len(out) > 0)
-	c.end <- true
+	c.sendChunk(&out, len(out) > 0)
+	c.endChan <- true
 }
 
 func (c *CsvToStruct[T]) setValue(data []string, tmp *T) error {
@@ -126,12 +136,17 @@ func (c *CsvToStruct[T]) setValue(data []string, tmp *T) error {
 	return nil
 }
 
-func (c *CsvToStruct[T]) send(out *[]T, force ...bool) {
+func (c *CsvToStruct[T]) sendChunk(out *[]T, force ...bool) {
 	if len(*out) >= c.ops.ChunkSize || (len(force) > 0 && force[0]) {
-		c.outChan <- *out
-		<-c.next //w8 until client ready to move
+		c.outsChan <- *out
+		<-c.nextChan //w8 until client ready to move
 		*out = []T{}
 	}
+}
+
+func (c *CsvToStruct[T]) send(out *T) {
+	c.outChan <- *out
+	<-c.nextChan //w8 until client ready to move
 }
 
 func typeSafe(f reflect.Value, val string) error {
@@ -160,15 +175,16 @@ func typeSafe(f reflect.Value, val string) error {
 		}
 		f.SetFloat(v)
 	default:
-		fmt.Println("not found") //TODO return err not support
+		return fmt.Errorf("csvtogo is not support type %v", f.Type().String())
 	}
 	return nil
 }
 
 func (c *CsvToStruct[T]) Close() {
-	close(c.next)
+	close(c.nextChan)
 	close(c.outChan)
-	close(c.end)
+	close(c.endChan)
+	close(c.errChan)
 }
 
 func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
@@ -181,9 +197,9 @@ func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
 		defer f.Close()
 
 		reader := csv.NewReader(f)
+		reader.Comma = c.ops.Comma
 		counter := -1
 		ref := make([]T, 1)
-		var out []T
 		for {
 			counter += 1
 			tmp, err := reader.Read()
@@ -197,7 +213,7 @@ func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
 			typeRef := ref[0]
 			v := reflect.ValueOf(&typeRef).Elem()
 			if len(tmp) != v.NumField() {
-				fmt.Println(counter)
+				fmt.Println(len(tmp), v.NumField())
 				c.errChan <- fmt.Errorf("invalid at %v", counter)
 				break
 			}
@@ -206,10 +222,9 @@ func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
 				c.errChan <- err
 				break
 			}
-			out = append(out, typeRef)
-			c.send(&out, true)
+			c.send(&typeRef)
 		}
-		c.end <- true
+		c.endChan <- true
 	}()
 	return c
 }
