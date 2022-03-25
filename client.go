@@ -9,7 +9,7 @@ type Client[T any] struct {
 	CsvToStruct[T]
 }
 
-func NewClient[T any](csvFile string, ops ...Options) (*Client[T], error) {
+func NewClient[T any](csvFile string, ops ...*Options) (*Client[T], error) {
 	option := _defaultOps
 	if ops != nil {
 		//validate ops
@@ -41,7 +41,10 @@ func NewClient[T any](csvFile string, ops ...Options) (*Client[T], error) {
 	}, nil
 }
 
-func validateOps(ops Options) (*Options, error) {
+func validateOps(ops *Options) (*Options, error) {
+	if ops == nil {
+		return nil, nil
+	}
 	if utf8.RuneCountInString(string(ops.Comma)) == 0 {
 		return nil, csvCommaIsRequired
 	}
@@ -52,5 +55,5 @@ func validateOps(ops Options) (*Options, error) {
 		}
 		ops.skipper = m
 	}
-	return &ops, nil
+	return ops, nil
 }

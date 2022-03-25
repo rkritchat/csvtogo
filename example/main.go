@@ -17,7 +17,7 @@ type CustInfo struct {
 func main() {
 	c, err := csvtogo.NewClient[CustInfo](
 		"./test.csv",
-		csvtogo.Options{
+		&csvtogo.Options{
 			SkipHeader: true,
 			ChunkSize:  1,
 			Comma:      ',',
