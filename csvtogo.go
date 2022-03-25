@@ -1,17 +1,11 @@
 package csvtogo
 
 import (
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"strconv"
-)
-
-const (
-	defaultChunkSize = 1000
 )
 
 var _defaultOps = Options{
@@ -19,7 +13,7 @@ var _defaultOps = Options{
 	Comma:      ',',
 }
 
-var csvCommaIsRequired = errors.New("ops.Comma is required")
+var csvCommaIsRequired = errors.New("Options.Comma is required")
 
 type CsvToStruct[T any] struct {
 	targetCSV string
@@ -39,6 +33,22 @@ type Options struct {
 	ReplaceWith map[string]string
 	Comma       rune
 	skipper     map[int]int
+}
+
+func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
+	go func() {
+		err := csvReader[T](
+			c.targetCSV,
+			c.ops.Comma,
+			c.valueSetter,
+		)
+		if err != nil {
+			c.errChan <- err
+			return
+		}
+		c.endChan <- true
+	}()
+	return c
 }
 
 func (c *CsvToStruct[T]) ToList() *CsvToStruct[T] {
@@ -123,14 +133,14 @@ func (c *CsvToStruct[T]) setValue(data []string, tmp *T) error {
 func (c *CsvToStruct[T]) sendChunk(out *[]T, force ...bool) {
 	if len(*out) >= c.ops.ChunkSize || (len(force) > 0 && force[0]) {
 		c.outsChan <- *out
-		<-c.nextChan //w8 until client ready to move
+		<-c.nextChan //w8 until client is ready to move
 		*out = []T{}
 	}
 }
 
 func (c *CsvToStruct[T]) send(out *T) {
 	c.outChan <- *out
-	<-c.nextChan //w8 until client ready to move
+	<-c.nextChan //w8 until client is ready to move
 }
 
 func typeSafe(f reflect.Value, val string) error {
@@ -171,48 +181,6 @@ func (c *CsvToStruct[T]) Close() {
 	close(c.errChan)
 }
 
-func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
-	go func() {
-		f, err := os.Open(c.targetCSV)
-		if err != nil {
-			c.errChan <- err
-			return
-		}
-		defer f.Close()
-
-		reader := csv.NewReader(f)
-		reader.Comma = c.ops.Comma
-		counter := -1
-		ref := make([]T, 1)
-		for {
-			counter += 1
-			tmp, err := reader.Read()
-			if err == io.EOF {
-				break
-			}
-			//skip header
-			if c.ops.SkipHeader && counter == 0 {
-				continue
-			}
-			typeRef := ref[0]
-			v := reflect.ValueOf(&typeRef).Elem()
-			//if len(tmp) != v.NumField() {
-			if !c.isValidStruct(len(tmp), v.NumField()) {
-				c.errChan <- fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", counter, v.NumField(), getRealNoOfCol(len(tmp), len(c.ops.SkipCol)))
-				break
-			}
-			err = c.setValue(tmp, &typeRef)
-			if err != nil {
-				c.errChan <- err
-				break
-			}
-			c.send(&typeRef)
-		}
-		c.endChan <- true
-	}()
-	return c
-}
-
 func (c *CsvToStruct[T]) isValidStruct(size int, fieldSize int) bool {
 	return size == (fieldSize + len(c.ops.SkipCol))
 }
@@ -222,4 +190,22 @@ func getRealNoOfCol(noOfCal int, skip int) int {
 		return noOfCal
 	}
 	return noOfCal - skip
+}
+
+func (c *CsvToStruct[T]) valueSetter(ref T, data []string, counter int) error {
+	//skip header if required
+	if c.ops.SkipHeader && counter == 0 {
+		return nil
+	}
+
+	v := reflect.ValueOf(&ref).Elem()
+	if !c.isValidStruct(len(data), v.NumField()) {
+		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", counter, v.NumField(), getRealNoOfCol(len(data), len(c.ops.SkipCol)))
+	}
+	err := c.setValue(data, &ref)
+	if err != nil {
+		return err
+	}
+	c.send(&ref)
+	return nil
 }
