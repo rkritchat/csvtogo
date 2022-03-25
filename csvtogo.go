@@ -249,7 +249,7 @@ func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
 			v := reflect.ValueOf(&typeRef).Elem()
 			//if len(tmp) != v.NumField() {
 			if !c.isValidStruct(len(tmp), v.NumField()) {
-				c.errChan <- fmt.Errorf("number of csv column is not match with struct at row: %v, expected: %v, got: %v", counter, v.NumField(), len(tmp)-len(c.ops.SkipCol))
+				c.errChan <- fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", counter, v.NumField(), getRealNoOfCol(len(tmp), len(c.ops.SkipCol)))
 				break
 			}
 			err = c.setValue(tmp, &typeRef)
@@ -266,4 +266,11 @@ func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
 
 func (c *CsvToStruct[T]) isValidStruct(size int, fieldSize int) bool {
 	return size == (fieldSize + len(c.ops.SkipCol))
+}
+
+func getRealNoOfCol(noOfCal int, skip int) int {
+	if noOfCal < skip {
+		return noOfCal
+	}
+	return noOfCal - skip
 }
