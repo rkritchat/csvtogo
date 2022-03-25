@@ -1,47 +1,87 @@
 package csvtogo
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 )
 
 const (
-	min   = "min"
-	max   = "max"
-	empty = ""
+	tagMin = "min"
+	tagMax = "max"
 )
 
-func CheckMin[T any](f T) error {
+func ValidateStruct[T any](f T) error {
 	v := reflect.ValueOf(&f).Elem()
 	for i := 0; i < v.NumField(); i++ {
-		must, err := isTagFound[T](f, i, min)
+		//check minimum value length
+		err := checkMin[T](f, i, v)
 		if err != nil {
 			return err
 		}
-		if must < 0 {
-			//skip validate
-			continue
-		}
 
-		value := v.Field(i).Interface()
-		if len(fmt.Sprintf("%s", value)) < must {
-			fmt.Println(value)
-			return fmt.Errorf("value of %v is invalid", reflect.ValueOf(&f).Elem().Type().Field(i).Name) //TODO change err to must more than
+		//check maximum value length
+		err = checkMax[T](f, i, v)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func isTagFound[T any](field T, s int, tag string) (int, error) {
-	tmp := reflect.TypeOf(&field).Elem().Field(s).Tag.Get(tag)
+func checkMin[T any](field T, sequence int, v reflect.Value) error {
+	minimum, err := isTagFound[T](field, sequence, tagMin, v)
+	if err != nil {
+		return err
+	}
+	if minimum < 0 {
+		//no tag found, then skip validate
+		return nil
+	}
+
+	value := fmt.Sprintf("%v", v.Field(sequence).Interface())
+	if len(value) < minimum {
+		return fmt.Errorf("value of %v is invalid, value length must more than or equal %v, but got: %v",
+			v.Type().Field(sequence).Name,
+			minimum,
+			len(value),
+		)
+	}
+	return nil
+}
+
+func checkMax[T any](field T, sequence int, v reflect.Value) error {
+	maximum, err := isTagFound[T](field, sequence, tagMax, v)
+	if err != nil {
+		return err
+	}
+	if maximum < 0 {
+		//no tag found, then skip validate
+		return nil
+	}
+
+	value := fmt.Sprintf("%v", v.Field(sequence).Interface())
+	if len(value) > maximum {
+		return fmt.Errorf("value of %v is invalid, value length must less than or equal %v, but got: %v",
+			v.Type().Field(sequence).Name,
+			maximum,
+			len(value),
+		)
+	}
+	return nil
+}
+
+func isTagFound[T any](field T, sequence int, tag string, v reflect.Value) (int, error) {
+	tmp := reflect.TypeOf(&field).Elem().Field(sequence).Tag.Get(tag)
 	if len(tmp) > 0 {
-		v, err := strconv.Atoi(tmp)
+		val, err := strconv.Atoi(tmp)
 		if err != nil {
-			return -1, errors.New("value of tag is invalid")
+			return -1, fmt.Errorf("tag %v of field %v must be integer, got: %v", tag, v.Type().Field(sequence).Name, tmp)
 		}
-		return v, nil
+		if val < 0 {
+			return -1, fmt.Errorf("tag %v of field %v must more than zero, got: %v", tag, v.Type().Field(sequence).Name, tmp)
+		}
+		return val, nil
 	}
 	return -1, nil
 }
