@@ -55,8 +55,14 @@ func NewClient[T any](csvFile string, ops ...Options) (*Client[T], error) {
 			return nil, err
 		}
 		option = *options
-		//validate csvFile //TODO
 	}
+
+	//validate csvFile
+	f, err := os.Open(csvFile)
+	if err != nil {
+		return nil, err
+	}
+	_ = f.Close()
 
 	return &Client[T]{
 		CsvToStruct[T]{
