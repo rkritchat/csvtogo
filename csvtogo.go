@@ -199,6 +199,7 @@ func (c *CsvToStruct[T]) valueSetter(ref T, data []string, counter int) error {
 	}
 
 	v := reflect.ValueOf(&ref).Elem()
+	//check if number of csv columns equal struct fields
 	if !c.isValidStruct(len(data), v.NumField()) {
 		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", counter, v.NumField(), getRealNoOfCol(len(data), len(c.ops.SkipCol)))
 	}
@@ -214,6 +215,7 @@ func (c *CsvToStruct[T]) valueSetter(ref T, data []string, counter int) error {
 	if err != nil {
 		return err
 	}
+
 	c.send(&ref)
 	return nil
 }
