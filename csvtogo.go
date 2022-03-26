@@ -15,15 +15,15 @@ var _defaultOps = Options{
 
 var csvCommaIsRequired = errors.New("Options.Comma is required")
 
-type CsvToStruct[T any] struct {
-	targetCSV string
-	outsChan  chan []T
-	outChan   chan T
-	endChan   chan bool
-	nextChan  chan bool
-	errChan   chan error
-	run       bool
-	ops       Options
+type Executor[T any] struct {
+	file     string
+	outsChan chan []T
+	outChan  chan T
+	endChan  chan bool
+	nextChan chan bool
+	errChan  chan error
+	run      bool
+	ops      Options
 }
 
 type Options struct {
@@ -35,10 +35,10 @@ type Options struct {
 	skipper     map[int]int
 }
 
-func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
+func (c *Executor[T]) CsvToRows() *Executor[T] {
 	go func() {
 		err := csvReader[T](
-			c.targetCSV,
+			c.file,
 			c.ops.Comma,
 			c.valueSetter,
 		)
@@ -51,12 +51,40 @@ func (c *CsvToStruct[T]) Rows() *CsvToStruct[T] {
 	return c
 }
 
-func (c *CsvToStruct[T]) ToList() *CsvToStruct[T] {
+func (c *Executor[T]) CsvToStruct() ([]*T, error) {
+	go func() {
+		err := csvReader[T](
+			c.file,
+			c.ops.Comma,
+			c.valueSetter,
+		)
+		if err != nil {
+			c.errChan <- err
+		}
+		c.endChan <- true
+	}()
+	var r []*T
+	defer c.Close()
+	for {
+		val, err := c.Read()
+		if err != nil {
+			if err == io.EOF {
+				//End of data
+				return r, nil
+			}
+			return nil, err
+		}
+		r = append(r, val)
+		c.nextChan <- true
+	}
+}
+
+func (c *Executor[T]) ToList() *Executor[T] {
 	go c.start()
 	return c
 }
 
-func (c *CsvToStruct[T]) Next() bool {
+func (c *Executor[T]) Next() bool {
 	if c.run {
 		c.nextChan <- true
 		return true
@@ -64,7 +92,7 @@ func (c *CsvToStruct[T]) Next() bool {
 	return false
 }
 
-func (c *CsvToStruct[T]) Read() (*T, error) {
+func (c *Executor[T]) Read() (*T, error) {
 	for c.run {
 		select {
 		case data := <-c.outChan:
@@ -82,7 +110,7 @@ func (c *CsvToStruct[T]) Read() (*T, error) {
 	return nil, nil
 }
 
-func (c *CsvToStruct[T]) start() {
+func (c *Executor[T]) start() {
 	data := [][]string{
 		{"AAAA0", "BBBB0", "111"},
 		{"CCCC1", "DDDD1", "222"},
@@ -95,12 +123,12 @@ func (c *CsvToStruct[T]) start() {
 	ref := make([]T, 1)
 	var out []T
 	var isErr bool
-	for _, val := range data {
+	for i, val := range data {
 		if isErr {
 			return
 		}
 		tmp := ref[0] //copy reference
-		err := c.setValue(val, &tmp)
+		err := c.setValue(val, &tmp, i)
 		if err != nil {
 			c.errChan <- err
 		}
@@ -113,7 +141,7 @@ func (c *CsvToStruct[T]) start() {
 	c.endChan <- true
 }
 
-func (c *CsvToStruct[T]) setValue(data []string, tmp *T) error {
+func (c *Executor[T]) setValue(data []string, tmp *T, row int) error {
 	col := 0
 	for i, val := range data {
 		//check if in target skipper
@@ -121,7 +149,7 @@ func (c *CsvToStruct[T]) setValue(data []string, tmp *T) error {
 			continue
 		}
 		f := reflect.ValueOf(tmp).Elem().Field(col)
-		err := typeSafe(f, val)
+		err := typeSafe(f, val, row)
 		if err != nil {
 			return err
 		}
@@ -130,7 +158,7 @@ func (c *CsvToStruct[T]) setValue(data []string, tmp *T) error {
 	return nil
 }
 
-func (c *CsvToStruct[T]) sendChunk(out *[]T, force ...bool) {
+func (c *Executor[T]) sendChunk(out *[]T, force ...bool) {
 	if len(*out) >= c.ops.ChunkSize || (len(force) > 0 && force[0]) {
 		c.outsChan <- *out
 		<-c.nextChan //w8 until client is ready to move
@@ -138,34 +166,31 @@ func (c *CsvToStruct[T]) sendChunk(out *[]T, force ...bool) {
 	}
 }
 
-func (c *CsvToStruct[T]) send(out *T) {
+func (c *Executor[T]) send(out *T) {
 	c.outChan <- *out
 	<-c.nextChan //w8 until client is ready to move
 }
 
-func typeSafe(f reflect.Value, val string) error {
+func typeSafe(f reflect.Value, val string, row int) error {
 	switch f.Interface().(type) {
-	case int, int32, int64:
-		v, err := strconv.Atoi(val)
-		if err != nil {
-			fmt.Println("invalid csv type, recording to struct it should be type int") //TODO fixme, generate manual err
-			return err
-		}
-		f.SetInt(int64(v))
 	case string:
 		f.SetString(val)
 	case bool:
 		b, err := strconv.ParseBool(val)
 		if err != nil {
-			fmt.Println("invalid bool type, recording to struct it should be type bool") //TODO fixme
-			return err
+			return fmt.Errorf("invalid csv value at row: %v, the struct accept type bool", row)
 		}
 		f.SetBool(b)
+	case int, int32, int64:
+		v, err := strconv.Atoi(val)
+		if err != nil {
+			return fmt.Errorf("invalid csv value at row: %v, the struct accept type int", row)
+		}
+		f.SetInt(int64(v))
 	case float32, float64:
 		v, err := strconv.ParseFloat(val, 64)
 		if err != nil {
-			fmt.Println("invalid bool type, recording to struct it should be type bool") //TODO fixme
-			return err
+			return fmt.Errorf("invalid csv value at row: %v, the struct accept type float", row)
 		}
 		f.SetFloat(v)
 	default:
@@ -174,15 +199,15 @@ func typeSafe(f reflect.Value, val string) error {
 	return nil
 }
 
-func (c *CsvToStruct[T]) Close() {
+func (c *Executor[T]) Close() {
 	close(c.nextChan)
 	close(c.outChan)
 	close(c.endChan)
 	close(c.errChan)
 }
 
-func (c *CsvToStruct[T]) isValidStruct(size int, fieldSize int) bool {
-	return size == (fieldSize + len(c.ops.SkipCol))
+func (c *Executor[T]) isValidStruct(size int, fieldSize int) bool {
+	return size <= (fieldSize + len(c.ops.SkipCol))
 }
 
 func getRealNoOfCol(noOfCal int, skip int) int {
@@ -192,26 +217,26 @@ func getRealNoOfCol(noOfCal int, skip int) int {
 	return noOfCal - skip
 }
 
-func (c *CsvToStruct[T]) valueSetter(ref T, data []string, counter int) error {
+func (c *Executor[T]) valueSetter(ref T, data []string, row int) error {
 	//skip header if required
-	if c.ops.SkipHeader && counter == 0 {
+	if c.ops.SkipHeader && row == 0 {
 		return nil
 	}
 
 	v := reflect.ValueOf(&ref).Elem()
 	//check if number of csv columns equal struct fields
 	if !c.isValidStruct(len(data), v.NumField()) {
-		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", counter, v.NumField(), getRealNoOfCol(len(data), len(c.ops.SkipCol)))
+		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", row, v.NumField(), getRealNoOfCol(len(data), len(c.ops.SkipCol)))
 	}
 
 	//set value by using reflex
-	err := c.setValue(data, &ref)
+	err := c.setValue(data, &ref, row)
 	if err != nil {
 		return err
 	}
 
 	//validate struct value from tag
-	err = validateStruct(ref, counter)
+	err = validateStruct(ref, row)
 	if err != nil {
 		return err
 	}

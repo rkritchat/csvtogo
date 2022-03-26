@@ -6,10 +6,10 @@ import (
 )
 
 type Client[T any] struct {
-	CsvToStruct[T]
+	Executor[T]
 }
 
-func NewClient[T any](csvFile string, ops ...*Options) (*Client[T], error) {
+func NewClient[T any](file string, ops ...*Options) (*Client[T], error) {
 	option := _defaultOps
 	if ops != nil {
 		//validate ops
@@ -20,23 +20,23 @@ func NewClient[T any](csvFile string, ops ...*Options) (*Client[T], error) {
 		option = *options
 	}
 
-	//validate csvFile
-	f, err := os.Open(csvFile)
+	//validate file
+	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
 	_ = f.Close()
 
 	return &Client[T]{
-		CsvToStruct[T]{
-			targetCSV: csvFile,
-			ops:       option,
-			outsChan:  make(chan []T, 1),
-			outChan:   make(chan T, 1),
-			endChan:   make(chan bool, 1),
-			nextChan:  make(chan bool, 1),
-			errChan:   make(chan error),
-			run:       true,
+		Executor[T]{
+			file:     file,
+			ops:      option,
+			outsChan: make(chan []T, 1),
+			outChan:  make(chan T, 1),
+			endChan:  make(chan bool, 1),
+			nextChan: make(chan bool, 1),
+			errChan:  make(chan error),
+			run:      true,
 		},
 	}, nil
 }
