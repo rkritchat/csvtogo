@@ -27,12 +27,11 @@ type Executor[T any] struct {
 }
 
 type Options struct {
-	ChunkSize   int
-	SkipHeader  bool
-	SkipCol     []int
-	ReplaceWith map[string]string
-	Comma       rune
-	skipper     map[int]int
+	SkipHeader bool
+	SkipCol    []int
+	Comma      rune
+	ChunkSize  int
+	skipper    map[int]int
 }
 
 func (c *Executor[T]) CsvToRows() *Executor[T] {
@@ -144,7 +143,7 @@ func (c *Executor[T]) start() {
 func (c *Executor[T]) setValue(data []string, tmp *T, row int) error {
 	col := 0
 	for i, val := range data {
-		//check if in target skipper
+		//check if in skipper
 		if _, ok := c.ops.skipper[i]; ok {
 			continue
 		}

@@ -10,7 +10,7 @@ import (
 
 type CustInfo struct {
 	Firstname string `json:"firstname" max:"10" min:"1"`
-	Lastname  string `json:"lastname" min:"1"`
+	Lastname  string `json:"lastname" min:"0"`
 	Age       int    `json:"age" min:"1" max:"3"`
 }
 
@@ -19,7 +19,6 @@ func main() {
 		"./test.csv",
 		&csvtogo.Options{
 			SkipHeader: true,
-			ChunkSize:  1,
 			Comma:      ',',
 			SkipCol: []int{ //skip convert to struct on column 0 and 3
 				0,
@@ -32,10 +31,11 @@ func main() {
 
 	//convert csv row by row
 	rows := c.CsvToRows()
+	var r []*CustInfo
 	defer rows.Close()
 	for rows.Next() {
-		tmp, err := rows.Read() //return EOF is no more rows, return T, err
-		if err == io.EOF {
+		tmp, err := rows.Read()
+		if err == io.EOF { //return EOF is no more row
 			fmt.Println("EOF")
 			break
 		}
@@ -44,9 +44,14 @@ func main() {
 			break
 		}
 		if tmp != nil {
+			//you can adjust struct here if needed
 			fmt.Printf("%#v\n", tmp)
 			fmt.Println("process something 2 secs")
 			time.Sleep(2 * time.Second)
+			r = append(r, tmp)
 		}
 	}
+
+	//work with your lovely struct here
+	fmt.Println(r)
 }
