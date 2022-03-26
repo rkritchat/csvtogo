@@ -40,12 +40,12 @@ func checkMin[T any](field T, sequence, row int, v reflect.Value) error {
 	}
 
 	value := fmt.Sprintf("%v", v.Field(sequence).Interface())
-	if len(value) < minimum {
+	if len([]rune(value)) < minimum {
 		return fmt.Errorf("value of %v at row %v is invalid, value length must more than or equal %v, but got: %v",
 			v.Type().Field(sequence).Name,
 			row,
 			minimum,
-			len(value),
+			len([]rune(value)),
 		)
 	}
 	return nil
@@ -62,12 +62,12 @@ func checkMax[T any](field T, sequence, row int, v reflect.Value) error {
 	}
 
 	value := fmt.Sprintf("%v", v.Field(sequence).Interface())
-	if len(value) > maximum {
+	if len([]rune(value)) > maximum {
 		return fmt.Errorf("value of %v at row %v is invalid, value length must less than or equal %v, but got: %v",
 			v.Type().Field(sequence).Name,
 			row,
 			maximum,
-			len(value),
+			len([]rune(value)),
 		)
 	}
 	return nil
