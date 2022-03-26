@@ -2,7 +2,6 @@ package csvtogo
 
 import (
 	"os"
-	"unicode/utf8"
 )
 
 type Client[T any] struct {
@@ -12,11 +11,9 @@ type Client[T any] struct {
 func NewClient[T any](file string, ops ...*Options) (*Client[T], error) {
 	option := _defaultOps
 	if ops != nil {
-		//validate ops
-		options, err := validateOps(ops[0])
-		if err != nil {
-			return nil, err
-		}
+		options := ops[0]
+		//convert SkipCol to map
+		options.skipper = initSkipper(options.SkipCols)
 		option = *options
 	}
 
@@ -41,19 +38,13 @@ func NewClient[T any](file string, ops ...*Options) (*Client[T], error) {
 	}, nil
 }
 
-func validateOps(ops *Options) (*Options, error) {
-	if ops == nil {
-		return nil, nil
-	}
-	if utf8.RuneCountInString(string(ops.Comma)) == 0 {
-		return nil, csvCommaIsRequired
-	}
-	if len(ops.SkipCol) > 0 {
+func initSkipper(skipCols []int) map[int]int {
+	if len(skipCols) > 0 {
 		m := make(map[int]int)
-		for _, val := range ops.SkipCol {
+		for _, val := range skipCols {
 			m[val] = val
 		}
-		ops.skipper = m
+		return m
 	}
-	return ops, nil
+	return nil
 }

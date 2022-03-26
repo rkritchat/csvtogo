@@ -1,7 +1,6 @@
 package csvtogo
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -12,8 +11,6 @@ var _defaultOps = Options{
 	SkipHeader: true,
 	Comma:      ',',
 }
-
-var csvCommaIsRequired = errors.New("Options.Comma is required")
 
 type Executor[T any] struct {
 	file     string
@@ -28,7 +25,7 @@ type Executor[T any] struct {
 
 type Options struct {
 	SkipHeader bool
-	SkipCol    []int
+	SkipCols   []int
 	Comma      rune
 	ChunkSize  int
 	skipper    map[int]int
@@ -206,7 +203,7 @@ func (c *Executor[T]) Close() {
 }
 
 func (c *Executor[T]) isValidStruct(size int, fieldSize int) bool {
-	return size <= (fieldSize + len(c.ops.SkipCol))
+	return size <= (fieldSize + len(c.ops.SkipCols))
 }
 
 func getRealNoOfCol(noOfCal int, skip int) int {
@@ -225,7 +222,7 @@ func (c *Executor[T]) valueSetter(ref T, data []string, row int) error {
 	v := reflect.ValueOf(&ref).Elem()
 	//check if number of csv columns equal struct fields
 	if !c.isValidStruct(len(data), v.NumField()) {
-		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", row, v.NumField(), getRealNoOfCol(len(data), len(c.ops.SkipCol)))
+		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", row, v.NumField(), getRealNoOfCol(len(data), len(c.ops.SkipCols)))
 	}
 
 	//set value by using reflex

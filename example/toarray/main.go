@@ -17,9 +17,8 @@ func main() {
 		"./test.csv",
 		&csvtogo.Options{
 			SkipHeader: true,
-			ChunkSize:  1,
 			Comma:      ',',
-			SkipCol: []int{ //skip convert to struct on column 0 and 3
+			SkipCols: []int{ //skip convert to struct on column 0 and 3
 				0,
 				3,
 			},
