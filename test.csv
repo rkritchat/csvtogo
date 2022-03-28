@@ -1,4 +1,4 @@
-ID,FIRST NAME,LAST NAME,ADDR,AGE
-1,Kritchat,Rojanaphruk,test-addr1,2
-2,Uefa,Uef,test-addr2,1
-3,Luffy,Luf,test-addr3,22
+ID,FIRST NAME,LAST NAME,ADDR,AGE,MARRIED
+1,Kritchat,Rojanaphruk,test-addr1,2,false
+2,Uefa,Uef,test-addr2,1,true
+3,Luffy,Luf,test-addr3,22,0

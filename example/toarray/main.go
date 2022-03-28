@@ -10,6 +10,7 @@ type CustInfo struct {
 	Firstname string `json:"firstname" max:"10" min:"1"`
 	Lastname  string `json:"lastname" min:"1"`
 	Age       int    `json:"age" min:"1" max:"3"`
+	Married   bool   `json:"married"`
 }
 
 func main() {
