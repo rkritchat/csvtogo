@@ -203,14 +203,8 @@ func (c *Executor[T]) Close() {
 }
 
 func (c *Executor[T]) isValidStruct(size int, fieldSize int) bool {
+	//to avoid panic, number of column must less than or equal struct field + skipper
 	return size <= (fieldSize + len(c.ops.SkipCols))
-}
-
-func getRealNoOfCol(noOfCal int, skip int) int {
-	if noOfCal < skip {
-		return noOfCal
-	}
-	return noOfCal - skip
 }
 
 func (c *Executor[T]) valueSetter(ref T, data []string, row int) error {
@@ -222,7 +216,7 @@ func (c *Executor[T]) valueSetter(ref T, data []string, row int) error {
 	v := reflect.ValueOf(&ref).Elem()
 	//check if number of csv columns equal struct fields
 	if !c.isValidStruct(len(data), v.NumField()) {
-		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", row, v.NumField(), getRealNoOfCol(len(data), len(c.ops.SkipCols)))
+		return fmt.Errorf("number of column is not match with struct at row: %v, expected: %v, got: %v", row, v.NumField(), realNoOfCol(len(data), len(c.ops.SkipCols)))
 	}
 
 	//set value by using reflex
@@ -239,4 +233,11 @@ func (c *Executor[T]) valueSetter(ref T, data []string, row int) error {
 
 	c.send(&ref)
 	return nil
+}
+
+func realNoOfCol(noOfCal int, skip int) int {
+	if noOfCal < skip {
+		return noOfCal
+	}
+	return noOfCal - skip
 }

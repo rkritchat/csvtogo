@@ -12,7 +12,7 @@ func NewClient[T any](file string, ops ...*Options) (*Client[T], error) {
 	option := _defaultOps
 	if ops != nil {
 		options := ops[0]
-		//convert SkipCol to map
+		//convert SkipCols to map
 		options.skipper = initSkipper(options.SkipCols)
 		option = *options
 	}
