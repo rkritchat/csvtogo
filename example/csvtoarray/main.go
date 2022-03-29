@@ -6,17 +6,17 @@ import (
 	"log"
 )
 
-//the example test.csv file
+//the example sample.csv file
 //  +--------------------------------------------------------------------+
 //  |  ID  ,  FIRSTNAME  ,  LASTNAME   ,  ADDR       ,  AGE  ,  MARRIED  |   <- header
 //  |  1   ,  John       ,  Doe        ,  test-addr1 ,  2    ,  false    |
 //  |  2   ,  Uefa       ,  Uef        ,  test-addr2 ,  1    ,  true     |
 //  |  3   ,  Luffy      ,  Luf        ,  test-addr3 ,  21   ,  false    |
 //  +--------------------------------------------------------------------+
-// PS. comma can set to any rune type such as pipe ( | ) or something you wish. (Options.Comma: '|')
+// PS. comma can set to any rune type such as pipe ( | ) or something related to csv file. (Options.Comma: '|')
 
 //CustInfo
-//convert above csv file to CustInfo struct order by column and struct field
+//convert above csv file to CustInfo struct order by column and struct field by using reflect and generic
 //Ps. Struct or field name is no need to match which column
 //Ps2. csvtogo support validating value such as max length / min length.
 type CustInfo struct {
@@ -28,7 +28,7 @@ type CustInfo struct {
 
 func main() {
 	c, err := csvtogo.NewClient[CustInfo](
-		"./test.csv",
+		"./sample.csv",
 		&csvtogo.Options{ //the option is an optional, csvtogo will use default if ops is nil
 			SkipHeader: true, //SKIP first row
 			Comma:      ',',
