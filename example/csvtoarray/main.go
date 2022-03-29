@@ -9,7 +9,7 @@ import (
 //the example test.csv file
 //  +--------------------------------------------------------------------+
 //  |  ID  ,  FIRSTNAME  ,  LASTNAME   ,  ADDR       ,  AGE  ,  MARRIED  |   <- header
-//  |  1   ,  Kritchat   ,  Rojanaphruk,  test-addr1 ,  2    ,  false    |
+//  |  1   ,  John       ,  Doe        ,  test-addr1 ,  2    ,  false    |
 //  |  2   ,  Uefa       ,  Uef        ,  test-addr2 ,  1    ,  true     |
 //  |  3   ,  Luffy      ,  Luf        ,  test-addr3 ,  21   ,  false    |
 //  +--------------------------------------------------------------------+
@@ -30,7 +30,7 @@ func main() {
 	c, err := csvtogo.NewClient[CustInfo](
 		"./test.csv",
 		&csvtogo.Options{ //the option is an optional, csvtogo will use default if ops is nil
-			SkipHeader: true,
+			SkipHeader: true, //SKIP first row
 			Comma:      ',',
 			SkipCols: []int{ //skip convert to struct at column 0 and 3
 				0, //SKIP COLUMN ID

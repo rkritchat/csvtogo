@@ -182,7 +182,7 @@ func (c *Executor[T]) valueSetter(ref T, data []string, row int) error {
 		return err
 	}
 
-	//validate struct value from tag
+	//validate struct value from tag //TODO improve performance by moving it into set value for avoid looping again
 	err = validateStruct(ref, row)
 	if err != nil {
 		return err

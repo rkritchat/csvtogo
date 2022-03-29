@@ -341,6 +341,34 @@ func Test_CsvToStruct(t *testing.T) {
 	}
 }
 
+func BenchmarkExecutor_CsvToStruct(b *testing.B) {
+	type Customer struct {
+		Name    string  `min:"1" max:"100"`
+		Age     int     `min:"1" max:"100"`
+		Salary  float64 `min:"1" max:"100"`
+		Married bool    `min:"1" max:"100"`
+	}
+	f, err := os.Create("./for_test.csv")
+	if err != nil {
+		panic(err)
+	}
+	w := csv.NewWriter(f)
+	_ = w.Write([]string{"NAME", "AGE", "SALARY", "MARRIED"})
+	for i := 1; i <= 1000; i++ {
+		_ = w.Write([]string{"Sarah", "12", "200.00", "false"})
+	}
+	w.Flush()
+	_ = f.Close()
+	defer os.Remove("./for_test.csv")
+
+	for n := 0; n < b.N; n++ {
+		c, _ := NewClient[Customer]("./for_test.csv")
+		c.CsvToStruct()
+	}
+
+	//9392940 ns/op for now TODO fix the performance
+}
+
 func deepEqual[T any](expect []T, actual []*T) error {
 	if len(expect) != len(actual) {
 		return fmt.Errorf("array size is not match")
