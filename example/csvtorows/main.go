@@ -22,7 +22,7 @@ import (
 //Ps. Struct or field name is no need to match which column
 //Ps2. csvtogo support validating value such as max length / min length.
 type CustInfo struct {
-	Name     string    `json:"name" max:"10" min:"1"` //<-- put max / min here if you need.
+	Name     string    `json:"name" max:"10" min:"1"` //<-- put max / min tag here if needed.
 	Lastname string    `json:"lastname" min:"0"`
 	Age      int       `json:"age" min:"1" max:"3"`
 	Married  bool      `json:"married"`
@@ -50,14 +50,15 @@ func main() {
 	defer rows.Close()
 	for rows.Next() {
 		tmp, err := rows.Read()
-		if err == io.EOF { //return EOF is no more row
-			fmt.Println("EOF")
-			break
-		}
 		if err != nil {
+			if err == io.EOF { //return EOF is no more row
+				fmt.Println("EOF")
+				break
+			}
 			fmt.Println(err)
 			break
 		}
+
 		if tmp != nil {
 			//you can adjust struct here if needed
 			fmt.Printf("%#v\n", tmp)

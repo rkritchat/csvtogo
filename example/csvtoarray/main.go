@@ -20,7 +20,7 @@ import (
 //Ps. Struct or field name is no need to match which column
 //Ps2. csvtogo support validating value such as max length / min length.
 type CustInfo struct {
-	Firstname string `json:"firstname" max:"10" min:"1"` //<-- put max / min here if you need.
+	Firstname string `json:"firstname" max:"10" min:"1"` //<-- put max / min tag here if needed.
 	Lastname  string `json:"lastname" min:"1"`
 	Age       int    `json:"age" min:"1" max:"3"`
 	Married   bool   `json:"married"`

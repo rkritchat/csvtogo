@@ -56,6 +56,7 @@ func (c *Executor[T]) CsvToStruct() ([]*T, error) {
 		)
 		if err != nil {
 			c.errChan <- err
+			return
 		}
 		c.endChan <- true
 	}()
@@ -73,11 +74,6 @@ func (c *Executor[T]) CsvToStruct() ([]*T, error) {
 		r = append(r, val)
 		c.nextChan <- true
 	}
-}
-
-func (c *Executor[T]) ToList() *Executor[T] {
-	go c.start()
-	return c
 }
 
 func (c *Executor[T]) Next() bool {
@@ -106,37 +102,6 @@ func (c *Executor[T]) Read() (*T, error) {
 	return nil, nil
 }
 
-func (c *Executor[T]) start() {
-	data := [][]string{
-		{"AAAA0", "BBBB0", "111"},
-		{"CCCC1", "DDDD1", "222"},
-		{"CCCC2", "DDDD2", "333"},
-		{"CCCC3", "DDDD3", "444"},
-		{"CCCC4", "DDDD4", "555"},
-		{"CCCC5", "DDDD5", "666"},
-		{"CCCC6", "DDDD6", "999"},
-	}
-	ref := make([]T, 1)
-	var out []T
-	var isErr bool
-	for i, val := range data {
-		if isErr {
-			return
-		}
-		tmp := ref[0] //copy reference
-		err := c.setValue(val, &tmp, i)
-		if err != nil {
-			c.errChan <- err
-		}
-		out = append(out, tmp)
-		c.sendChunk(&out)
-	}
-
-	//last chunk
-	c.sendChunk(&out, len(out) > 0)
-	c.endChan <- true
-}
-
 func (c *Executor[T]) setValue(data []string, tmp *T, row int) error {
 	col := 0
 	for i, val := range data {
@@ -152,14 +117,6 @@ func (c *Executor[T]) setValue(data []string, tmp *T, row int) error {
 		col += 1
 	}
 	return nil
-}
-
-func (c *Executor[T]) sendChunk(out *[]T, force ...bool) {
-	if len(*out) >= c.ops.ChunkSize || (len(force) > 0 && force[0]) {
-		c.outsChan <- *out
-		<-c.nextChan //w8 until client is ready to move
-		*out = []T{}
-	}
 }
 
 func (c *Executor[T]) send(out *T) {
@@ -241,3 +198,48 @@ func realNoOfCol(noOfCal int, skip int) int {
 	}
 	return noOfCal - skip
 }
+
+//toList planing for next phase
+//func (c *Executor[T]) toList() *Executor[T] {
+//	go c.start()
+//	return c
+//}
+//
+//func (c *Executor[T]) start() {
+//	data := [][]string{
+//		{"AAAA0", "BBBB0", "111"},
+//		{"CCCC1", "DDDD1", "222"},
+//		{"CCCC2", "DDDD2", "333"},
+//		{"CCCC3", "DDDD3", "444"},
+//		{"CCCC4", "DDDD4", "555"},
+//		{"CCCC5", "DDDD5", "666"},
+//		{"CCCC6", "DDDD6", "999"},
+//	}
+//	ref := make([]T, 1)
+//	var out []T
+//	var isErr bool
+//	for i, val := range data {
+//		if isErr {
+//			return
+//		}
+//		tmp := ref[0] //copy reference
+//		err := c.setValue(val, &tmp, i)
+//		if err != nil {
+//			c.errChan <- err
+//		}
+//		out = append(out, tmp)
+//		c.sendChunk(&out)
+//	}
+//
+//	//last chunk
+//	c.sendChunk(&out, len(out) > 0)
+//	c.endChan <- true
+//}
+//
+//func (c *Executor[T]) sendChunk(out *[]T, force ...bool) {
+//	if len(*out) >= c.ops.ChunkSize || (len(force) > 0 && force[0]) {
+//		c.outsChan <- *out
+//		<-c.nextChan //w8 until client is ready to move
+//		*out = []T{}
+//	}
+//}
