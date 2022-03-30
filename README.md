@@ -103,3 +103,7 @@ func main() {
 	fmt.Println(r)
 }
 ```
+
+MIT License
+
+Copyright (c) 2021 rkritchat
