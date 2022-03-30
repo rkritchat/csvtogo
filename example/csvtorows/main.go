@@ -62,8 +62,8 @@ func main() {
 		if tmp != nil {
 			//you can adjust struct here if needed
 			fmt.Printf("%#v\n", tmp)
-			fmt.Println("process something 2 secs")
-			time.Sleep(2 * time.Second)
+			fmt.Println("process something 1 secs")
+			time.Sleep(1 * time.Second)
 			r = append(r, tmp)
 		}
 	}

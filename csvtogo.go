@@ -16,7 +16,6 @@ type Executor[T any] struct {
 	file     string
 	outsChan chan []T
 	outChan  chan T
-	endChan  chan bool
 	nextChan chan bool
 	errChan  chan error
 	run      bool
@@ -42,24 +41,12 @@ func (c *Executor[T]) CsvToRows() *Executor[T] {
 			c.errChan <- err
 			return
 		}
-		c.endChan <- true
 	}()
 	return c
 }
 
 func (c *Executor[T]) CsvToStruct() ([]*T, error) {
-	go func() {
-		err := csvReader[T](
-			c.file,
-			c.ops.Comma,
-			c.valueSetter,
-		)
-		if err != nil {
-			c.errChan <- err
-			return
-		}
-		c.endChan <- true
-	}()
+	go c.read()
 	var r []*T
 	defer c.Close()
 	for {
@@ -76,6 +63,18 @@ func (c *Executor[T]) CsvToStruct() ([]*T, error) {
 	}
 }
 
+func (c *Executor[T]) read() {
+	err := csvReader[T](
+		c.file,
+		c.ops.Comma,
+		c.valueSetter,
+	)
+	if err != nil {
+		c.errChan <- err
+		return
+	}
+}
+
 func (c *Executor[T]) Next() bool {
 	if c.run {
 		c.nextChan <- true
@@ -89,9 +88,6 @@ func (c *Executor[T]) Read() (*T, error) {
 		select {
 		case data := <-c.outChan:
 			return &data, nil
-		case <-c.endChan:
-			c.run = false
-			return nil, io.EOF
 		case err := <-c.errChan:
 			c.run = false
 			return nil, err
@@ -104,11 +100,13 @@ func (c *Executor[T]) Read() (*T, error) {
 
 func (c *Executor[T]) setValue(data []string, tmp *T, row int) error {
 	col := 0
+
 	for i, val := range data {
 		//check if in skipper
 		if _, ok := c.ops.skipper[i]; ok {
 			continue
 		}
+
 		f := reflect.ValueOf(tmp).Elem().Field(col)
 		err := typeSafe(f, val, row)
 		if err != nil {
@@ -155,7 +153,6 @@ func typeSafe(f reflect.Value, val string, row int) error {
 func (c *Executor[T]) Close() {
 	close(c.nextChan)
 	close(c.outChan)
-	close(c.endChan)
 	close(c.errChan)
 }
 
@@ -182,7 +179,7 @@ func (c *Executor[T]) valueSetter(ref T, data []string, row int) error {
 		return err
 	}
 
-	//validate struct value from tag //TODO improve performance by moving it into set value for avoid looping again
+	//validate struct value from tag
 	err = validateStruct(ref, row)
 	if err != nil {
 		return err

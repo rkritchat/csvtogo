@@ -30,7 +30,6 @@ func NewClient[T any](file string, ops ...*Options) (*Client[T], error) {
 			ops:      option,
 			outsChan: make(chan []T, 1),
 			outChan:  make(chan T, 1),
-			endChan:  make(chan bool, 1),
 			nextChan: make(chan bool, 1),
 			errChan:  make(chan error),
 			run:      true,

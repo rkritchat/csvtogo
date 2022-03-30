@@ -4,8 +4,10 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -127,7 +129,7 @@ func Test_valueSetter(t *testing.T) {
 				ops:      tc.ops,
 				outsChan: make(chan []Student, 1),
 				outChan:  make(chan Student, 1),
-				endChan:  make(chan bool, 1),
+				//endChan:  make(chan bool, 1),
 				nextChan: make(chan bool, 1),
 				errChan:  make(chan error),
 				run:      true,
@@ -354,7 +356,7 @@ func BenchmarkExecutor_CsvToStruct(b *testing.B) {
 	}
 	w := csv.NewWriter(f)
 	_ = w.Write([]string{"NAME", "AGE", "SALARY", "MARRIED"})
-	for i := 1; i <= 1000; i++ {
+	for i := 0; i <= 100; i++ {
 		_ = w.Write([]string{"Sarah", "12", "200.00", "false"})
 	}
 	w.Flush()
@@ -362,11 +364,74 @@ func BenchmarkExecutor_CsvToStruct(b *testing.B) {
 	defer os.Remove("./for_test.csv")
 
 	for n := 0; n < b.N; n++ {
-		c, _ := NewClient[Customer]("./for_test.csv")
-		c.CsvToStruct()
+		//c, _ := NewClient[Customer]("./for_test.csv")
+		//_, err := c.CsvToStruct()
+		//if err != nil {
+		//	panic(err)
+		//}
+		//normal()
 	}
+}
 
-	//9392940 ns/op for now TODO fix the performance
+func normal() {
+	type Customer struct {
+		Name    string  `min:"1" max:"100"`
+		Age     int     `min:"1" max:"100"`
+		Salary  float64 `min:"1" max:"100"`
+		Married bool    `min:"1" max:"100"`
+	}
+	f, _ := os.Open("./for_test.csv")
+	defer f.Close()
+	var result []Customer
+	reader := csv.NewReader(f)
+	reader.Comma = ','
+	row := -1
+	for {
+		row += 1
+		if row == 0 {
+			continue
+		}
+		d, err := reader.Read()
+		if err == io.EOF {
+			//no more content
+			break
+		}
+		if len(d) != 4 {
+			//err
+			break
+		}
+
+		//max min checking
+		if len(d[1]) < 1 {
+			panic("failed")
+		}
+		if len(d[1]) > 100 {
+			panic("failed")
+		}
+		age, _ := strconv.Atoi(d[1])
+
+		if len(d[2]) < 1 {
+			panic("failed")
+		}
+		if len(d[2]) > 100 {
+			panic("failed")
+		}
+		s, _ := strconv.ParseFloat(d[2], 64)
+
+		if len(d[3]) < 1 {
+			panic("failed")
+		}
+		if len(d[3]) > 100 {
+			panic("failed")
+		}
+		b, _ := strconv.ParseBool(d[3])
+		result = append(result, Customer{
+			Name:    d[0],
+			Age:     age,
+			Salary:  s,
+			Married: b,
+		})
+	}
 }
 
 func deepEqual[T any](expect []T, actual []*T) error {
