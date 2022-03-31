@@ -106,4 +106,4 @@ func main() {
 
 MIT License
 
-Copyright (c) 2021 rkritchat
+Copyright (c) 2022 rkritchat
