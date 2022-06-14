@@ -1,3 +1,5 @@
+[![Coverage Status](https://coveralls.io/repos/github/rkritchat/csvtogo/badge.svg?branch=master)](https://coveralls.io/github/rkritchat/csvtogo?branch=master)
+
 csvtogo used for convert csv file to struct by using reflex and generic, required Go version 1.18+
 
 ## Installation
